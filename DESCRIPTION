@@ -1,0 +1,17 @@
+Package: dagwood
+Title: DAGWOOD
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Noh",
+           family = "Haber",
+           role = c("aut", "cre"),
+           email = "noahhaber@stanford.edu",
+           comment = c(ORCID = "0000-0002-5672-1769"))
+Description: DAGWOODs are a framework to help reveal key hidden assumptions in a causal DAG. This package creates a DAGWOOD object from a given DAG.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    dagitty
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.0
