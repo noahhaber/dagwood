@@ -31,78 +31,33 @@
 
 # Main DAGWOOD function
 dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrument=NA){
-  # Cleanup work
-    # Check if the formula provided is a dagitty object
-
-  # Function for determining if branch candidate passes DAGWOOD rules
-    test.DAG.branch.candidate <- function(DAG.branch.candidate,restriction.type=NA,changes.made=NA) {
-      # Create a reversed version for later use
-        DAG.branch.candidate.reversed <- DAG.branch.candidate
-        dagitty::exposures(DAG.branch.candidate.reversed) <- outcome
-        dagitty::outcomes(DAG.branch.candidate.reversed) <- exposure
-        adjustment.set.branch.candidate.reverse <- dagitty::adjustmentSets(DAG.branch.candidate.reversed,effect="direct")
-      # Rule 1: test if different than the root DAG
-        rule.1 <- ifelse(DAG.branch.candidate != DAG.root,
-                         "Passed","Failed, not different than root DAG")
-      # Rule 2: Test if forms a valid, identifiable DAG.
-        # Two parts: First check and make sure dagitty can identify an adjustment set (may be empty)
-        # (note: requires also testing flipped exposure/outcome)
-          adjustment.set.branch.candidate <- dagitty::adjustmentSets(DAG.branch.candidate,effect="direct")
-          rule.2 <- ifelse(!length(adjustment.set.branch.candidate)==0,
-          "Passed","Failed, not valid identifiable causal DAG")
-          if (rule.2!="Passed"){
-            rule.2 <- ifelse(!length(adjustment.set.branch.candidate.reverse)==0,
-              "Passed","Failed, not valid identifiable causal DAG")
-          } else {}
-        # Second: Check for bi-directional edges withough nodes or non-directional edges
-          if (rule.2=="Passed"){
-            # Part 1: check the edges function for edge types
-              edges.DAG.branch.candidate <- edges(DAG.branch.candidate)
-              rule.2 <- ifelse(!any(edges.DAG.branch.candidate$e=="<->") | !any(edges.DAG.branch.candidate$e=="--"),
-                  "Passed","Failed, not valid identifiable causal DAG")
-              if (rule.2=="Passed"){
-                # Swap edges, and make sure each doesn't already exist
-                  edges.DAG.branch.candidate.swapped <- edges.DAG.branch.candidate
-                  edges.DAG.branch.candidate.swapped$w <- edges.DAG.branch.candidate$v
-                  edges.DAG.branch.candidate.swapped$v <- edges.DAG.branch.candidate$w
-                  rule.2 <- ifelse(nrow(unique(rbind(edges.DAG.branch.candidate,edges.DAG.branch.candidate.swapped)))==nrow(edges.DAG.branch.candidate)*2,
-                         "Passed","Failed, not valid identifiable causal DAG")
-              } else {}
-          } else {}
-      # If both of these are passed, continue on, otherwise set rules 3a and 3b to NA and stop
-        if (rule.1=="Passed" && rule.2=="Passed"){
-          # Rule 3a: Test if requires a change in the adjustment set
-            rule.3a <- ifelse(!setequal(unlist(adjustment.set.branch.candidate),unlist(adjustment.set.root)),
-                   "Passed","Failed, no required change in adjustment set")
-            rule.3a <- ifelse(length(adjustment.set.branch.candidate)==0,
-                   "Not determinable, no valid adjustment set",rule.3a)
-          # Rule 3b: Test if changes the number of front door paths
-            rule.3b <- ifelse(n.paths.frontdoor.root != length(dagitty::paths(DAG.branch.candidate,directed=TRUE)$paths),
-                              "Passed","Failed, no change in number of frontdoor paths")
-            # If this fails, flip exposure/outcome. If this passes but previous failed, this test passes
-            if (rule.3b!="Passed"){
-              rule.3b <- ifelse(length(adjustment.set.branch.candidate.reverse)!=0,
-                   "Passed",rule.3b)
-            }
-          # Determine verdict
-            verdict <- ifelse(rule.3a=="Passed" | rule.3b=="Passed","Passed","Failed, not a valid branch DAG")
+  # Clean up formula/dagitty objects
+  {
+    # Check if the formula provided is a dagitty object, and fill in appropriately
+      if(dagitty::is.dagitty(formula.DAG)){
+        DAG.root <- formula.DAG
+        if (length(dagitty::exposures(formula.DAG))==0){
+          dagitty::exposures(DAG.root) <- exposure
         } else {
-          verdict <- "Failed, not a valid branch DAG"
-          rule.3a <- NA
-          rule.3b <- NA
+          exposure <- dagitty::exposures(DAG.root)
         }
+        if (length(dagitty::outcomes(formula.DAG))==0){
+          dagitty::outcomes(DAG.root) <- outcomes
+        } else {
+          outcome <- dagitty::outcomes(DAG.root)
+        }
+        formula.DAG <- paste0(edges(DAG.root)$v,edges(DAG.root)$e,edges(DAG.root)$w,collapse=" \n ")
+      } else {
+        DAG.root <- dagitty(paste0("dag {",formula.DAG,"}"))
+        dagitty::exposures(DAG.root) <- exposure
+        dagitty::outcomes(DAG.root) <- outcome
+      }
+  }
 
-      DAG.branch.candidate <- DAG.branch.candidate[1]
-      output <- data.frame(verdict,rule.1,rule.2,rule.3a,rule.3b,restriction.type,changes.made,DAG.branch.candidate,
-                           stringsAsFactors = FALSE)
-    }
   # Establish the root DAG and all relavant parameters of that root DAG
   # Keep the root DAG in the main functional environment
   {
     # Properties of the root DAG
-      DAG.root <- dagitty(paste0("dag {",formula.DAG,"}"))
-      dagitty::exposures(DAG.root) <- exposure
-      dagitty::outcomes(DAG.root) <- outcome
       adjustment.set.root <- dagitty::adjustmentSets(DAG.root,effect="direct")
       nodes.root <- names(DAG.root)
       n.paths.frontdoor.root <- length(dagitty::paths(DAG.root,directed=TRUE)$paths)
@@ -130,21 +85,21 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
             DAG.branch.candidate <- dagitty::dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
-            forward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,restriction.type = "ER",paste0("Added ",addition))
+            forward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,restriction.type = "ER",changes.made=paste0("Added ",addition))
             forward <- forward[forward$verdict=="Passed",]
           # First, try <- and test
             addition <- paste0(nodes.UUER.temp[1],"<-",nodes.UUER.temp[2])
             DAG.branch.candidate <- dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
-            backward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,restriction.type = "ER",paste0("Added ",addition))
+            backward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,restriction.type = "ER",changes.made=paste0("Added ",addition))
             backward <- backward[backward$verdict=="Passed",]
           # Lastly, try <-UUER-> and test
             addition <- paste0(nodes.UUER.temp[1],"<-UUER->",nodes.UUER.temp[2])
             DAG.branch.candidate <- dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
-            bidirectional <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,restriction.type = "ER",paste0("Added ",addition))
+            bidirectional <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,restriction.type = "ER",changes.made=paste0("Added ",addition))
             bidirectional <- bidirectional[bidirectional$verdict=="Passed",]
           # Finally, merge into one data frame
             output <- rbind(forward,backward,bidirectional)
@@ -204,9 +159,9 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
           recording.temp <- edges.candidate.tracking[edges.candidate.tracking$flipped==1,]
           changes.made <- paste(paste0(recording.temp$v,recording.temp$e,recording.temp$w),collapse=", ")
         # Test to see if this change results in a valid DAGWOOD branch DAG
-        # Ony test at target depth
+        # Only test at target depth
           if (sum(edges.candidate.tracking$flipped)==depth.target){
-            test.candidate <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,restriction.type = "MR",paste0("Flipped ",changes.made))
+            test.candidate <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,restriction.type = "MR",changes.made=paste0("Flipped ",changes.made))
             return(test.candidate)
           } else {
             # If not yet at target depth, iterate to find more flip candidates
@@ -244,4 +199,70 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
 
   # Export
     return(list("DAGs.branch" = DAGs.branch,"DAGs.tested"=DAGs.tested))
+}
+
+# Function for determining if branch candidate passes DAGWOOD rules
+test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,restriction.type=NA,changes.made=NA) {
+  # Create a reversed version for later use
+    DAG.branch.candidate.reversed <- DAG.branch.candidate
+    exposure <- exposures(DAG.root)
+    outcome <- outcomes(DAG.root)
+    dagitty::exposures(DAG.branch.candidate.reversed) <- outcome
+    dagitty::outcomes(DAG.branch.candidate.reversed) <- exposure
+    adjustment.set.branch.candidate.reverse <- dagitty::adjustmentSets(DAG.branch.candidate.reversed,effect="direct")
+  # Rule 1: test if different than the root DAG
+    rule.1 <- ifelse(DAG.branch.candidate != DAG.root,
+                     "Passed","Failed, not different than root DAG")
+  # Rule 2: Test if forms a valid, identifiable DAG.
+    # Two parts: First check and make sure dagitty can identify an adjustment set (may be empty)
+    # (note: requires also testing flipped exposure/outcome)
+      adjustment.set.branch.candidate <- dagitty::adjustmentSets(DAG.branch.candidate,effect="direct")
+      rule.2 <- ifelse(!length(adjustment.set.branch.candidate)==0,
+      "Passed","Failed, not valid identifiable causal DAG")
+      if (rule.2!="Passed"){
+        rule.2 <- ifelse(!length(adjustment.set.branch.candidate.reverse)==0,
+          "Passed","Failed, not valid identifiable causal DAG")
+      } else {}
+    # Second: Check for bi-directional edges withough nodes or non-directional edges
+      if (rule.2=="Passed"){
+        # Part 1: check the edges function for edge types
+          edges.DAG.branch.candidate <- edges(DAG.branch.candidate)
+          rule.2 <- ifelse(!any(edges.DAG.branch.candidate$e=="<->") | !any(edges.DAG.branch.candidate$e=="--"),
+              "Passed","Failed, not valid identifiable causal DAG")
+          if (rule.2=="Passed"){
+            # Swap edges, and make sure each doesn't already exist
+              edges.DAG.branch.candidate.swapped <- edges.DAG.branch.candidate
+              edges.DAG.branch.candidate.swapped$w <- edges.DAG.branch.candidate$v
+              edges.DAG.branch.candidate.swapped$v <- edges.DAG.branch.candidate$w
+              rule.2 <- ifelse(nrow(unique(rbind(edges.DAG.branch.candidate,edges.DAG.branch.candidate.swapped)))==nrow(edges.DAG.branch.candidate)*2,
+                     "Passed","Failed, not valid identifiable causal DAG")
+          } else {}
+      } else {}
+  # If both of these are passed, continue on, otherwise set rules 3a and 3b to NA and stop
+    if (rule.1=="Passed" && rule.2=="Passed"){
+      # Rule 3a: Test if requires a change in the adjustment set
+        rule.3a <- ifelse(!setequal(unlist(adjustment.set.branch.candidate),unlist(adjustment.set.root)),
+               "Passed","Failed, no required change in adjustment set")
+        rule.3a <- ifelse(length(adjustment.set.branch.candidate)==0,
+               "Not determinable, no valid adjustment set",rule.3a)
+      # Rule 3b: Test if changes the number of front door paths
+        rule.3b <- ifelse(n.paths.frontdoor.root != length(dagitty::paths(DAG.branch.candidate,directed=TRUE)$paths),
+                          "Passed","Failed, no change in number of frontdoor paths")
+        # If this fails, flip exposure/outcome. If this passes but previous failed, this test passes
+        if (rule.3b!="Passed"){
+          rule.3b <- ifelse(length(adjustment.set.branch.candidate.reverse)!=0,
+               "Passed",rule.3b)
+        }
+      # Determine verdict
+        verdict <- ifelse(rule.3a=="Passed" | rule.3b=="Passed","Passed","Failed, not a valid branch DAG")
+    } else {
+      verdict <- "Failed, not a valid branch DAG"
+      rule.3a <- NA
+      rule.3b <- NA
+    }
+
+  DAG.branch.candidate <- DAG.branch.candidate[1]
+  output <- data.frame(verdict,rule.1,rule.2,rule.3a,rule.3b,restriction.type,changes.made,DAG.branch.candidate,
+                       stringsAsFactors = FALSE)
+  return(output)
 }
