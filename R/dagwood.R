@@ -53,22 +53,15 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
         dagitty::outcomes(DAG.root) <- outcome
       }
   }
-
-  # Establish the root DAG and all relavant parameters of that root DAG
-  # Keep the root DAG in the main functional environment
-  {
-    # Properties of the root DAG
-      adjustment.set.root <- dagitty::adjustmentSets(DAG.root,effect="direct")
-      nodes.root <- names(DAG.root)
-      n.paths.frontdoor.root <- length(dagitty::paths(DAG.root,directed=TRUE)$paths)
-      edges.root <- dagitty::edges(DAG.root)
-    # Properties of the KUERs (if any), set aside for later (not part of the root DAG)
-      if (!is.na(formula.KUERs)){
-        DAG.root.KUERs <- dagitty(paste0("dag {",paste0(formula.DAG,"\n",formula.KUERs,"}")))
-        nodes.root.KUERs <- names(DAG.root.KUERs)
-        nodes.KUERs <- nodes.root.KUERs[!nodes.root.KUERs %in% nodes.root]
-      }
-  }
+  # Properties of the root DAG
+    nodes.root <- names(DAG.root)
+    edges.root <- dagitty::edges(DAG.root)
+  # Properties of the KUERs (if any), set aside for later (not part of the root DAG)
+    if (!is.na(formula.KUERs)){
+      DAG.root.KUERs <- dagitty(paste0("dag {",paste0(formula.DAG,"\n",formula.KUERs,"}")))
+      nodes.root.KUERs <- names(DAG.root.KUERs)
+      nodes.KUERs <- nodes.root.KUERs[!nodes.root.KUERs %in% nodes.root]
+    }
 
   # Identify exclusion restrictions
   {
@@ -128,15 +121,15 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
       MR.search.recursive.outer <- function(edges.candidate.tracking,index.edge,depth=1,search.direction="downstream"){
         # First, attempt to find matches at current depth
           tests.at.level <- MR.search.recursive.at.depth(edges.candidate.tracking=edges.candidate.tracking,i=index.edge,depth.target=depth,search.direction=search.direction)
-        # If it passes, return the output
-          if (any(tests.at.level$verdict=="Passed")){
+        # If it passes (or returns a blank), return the output
+          if (any(tests.at.level$verdict=="Passed")|nrow(tests.at.level)==0){
             return(tests.at.level)
           } else {
             # If not, iterate and run the next level
             return(MR.search.recursive.outer(edges.candidate.tracking,index.edge,depth=depth+1))
           }
       }
-    # Recursive function for searching for MRs, searching intil it hits a target depth
+    # Recursive function for searching for MRs, searching until it hits a target depth
       MR.search.recursive.at.depth <- function(edges.candidate.tracking,i,depth.target,search.direction="downstream"){
         # First, reset the flip candidates to 0
           edges.candidate.tracking$flip.candidate <- 0
@@ -178,6 +171,7 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
               }
             # If nothing is available, return an empty set
               if(sum(edges.candidate.tracking$flip.candidate)==0){
+                test.candidate <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root)
                 test.candidate$flips <- sum(edges.candidate.tracking$flipped)
                 return(test.candidate[0,])
               } else {
@@ -185,7 +179,8 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
                 # Find the row indexes for the new candidates
                   new.candidates <- as.numeric(rownames(edges.candidate.tracking[edges.candidate.tracking$flip.candidate==1,]))
                 # Run the function for all of the new candidates
-                  return(do.call("rbind",lapply(1:length(new.candidates),function(x) MR.search.recursive.at.depth(edges.candidate.tracking,new.candidates[x],depth.target=depth.target,search.direction=search.direction))))
+                  output <- do.call("rbind",lapply(1:length(new.candidates),function(x) MR.search.recursive.at.depth(edges.candidate.tracking,new.candidates[x],depth.target=depth.target,search.direction=search.direction)))
+                  return(output)
               }
           }
       }
@@ -202,7 +197,12 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
 }
 
 # Function for determining if branch candidate passes DAGWOOD rules
-test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,restriction.type=NA,changes.made=NA) {
+test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,instrument=NA,restriction.type=NA,changes.made=NA) {
+  # Properties of the root DAG
+    adjustment.set.root <- dagitty::adjustmentSets(DAG.root,effect="direct")
+    n.paths.frontdoor.root <- length(dagitty::paths(DAG.root,directed=TRUE)$paths)
+    nodes.root <- names(DAG.root)
+    edges.root <- dagitty::edges(DAG.root)
   # Create a reversed version for later use
     DAG.branch.candidate.reversed <- DAG.branch.candidate
     exposure <- exposures(DAG.root)
@@ -220,10 +220,10 @@ test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,restriction.
       rule.2 <- ifelse(!length(adjustment.set.branch.candidate)==0,
       "Passed","Failed, not valid identifiable causal DAG")
       if (rule.2!="Passed"){
-        rule.2 <- ifelse(!length(adjustment.set.branch.candidate.reverse)==0,
-          "Passed","Failed, not valid identifiable causal DAG")
+      rule.2 <- ifelse(!length(adjustment.set.branch.candidate.reverse)==0,
+        "Passed","Failed, not valid identifiable causal DAG")
       } else {}
-    # Second: Check for bi-directional edges withough nodes or non-directional edges
+    # Second: Check for bi-directional edges without nodes or non-directional edges
       if (rule.2=="Passed"){
         # Part 1: check the edges function for edge types
           edges.DAG.branch.candidate <- edges(DAG.branch.candidate)
