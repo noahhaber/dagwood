@@ -1,24 +1,46 @@
 #' @title DAGs with omitted objects displayed
 #'
-#' @description This function takes a root DAG and generates a DAGWOOD object from it. Details are available
-#' from a preprint, here: https://arxiv.org/abs/2004.04251
+#' @description This function takes a root DAG and generates DAGWOOD branch DAGs from it.
+#' At present, there are two types of branch DAGs:
+#' 1) Exclusion branch DAGs represent nodes which, if exist, violate key causal model assumptions.
+#' The most common example are confounders. There are two types of exclusion branch DAGs at present:
+#' known exclusion branch DAGs (KEBDs) representing nodes that an analyst knows exist, but did not
+#' include them in the analytical model (for example, due to lack of data), and unknown exclusion branch
+#' DAGs (UEBDs) representing unknown or otherwise undeclared nodes which violate key model assumptions.
+#' 2) Misdirection branch DAGs represent DAGs in which a minimal number of DAG arrows might be flipped
+#' in order to violate key model assumptions. Common examples might be the case when something that is
+#' adjusted-for as a confounder is a collider, or if missing time nodes exist such that there is "reverse"
+#' causality between the exposure and outcome.
+#' 
+#' Details on how DAGWOOD works, can be used, and should be interpreted are available
+#' from our preprint, here: https://arxiv.org/abs/2004.04251
 #'
 #' Current limitations to this package:
 #' Instrumental variables support is experimental (conditional IVs not yet supported)
 #' Does not currently support non-minimal adjustment sets from root DAGs
-#' Does not currently match KUER branch DAG matching with the UUER branch DAGs
+#' Does not currently match KEBD branch DAG matching with the UEBD branch DAGs
 #'
 #' Future features: improved graphical outputs, additional branch DAG types, possibly a GUI
 #' Improve DAG import features and data checking (e.g. make sure IV is valid on entry)
+#' 
+#' Abbreviations used:
+#' BD: branch DAG
+#' DAG: directed acyclic graph
+#' DAGWOOD: directed acyclic graph with omitted objects displayed
+#' EBD: exclusion branch DAG
+#' IV: instrumental variable
+#' KEBD: known exclusion branch DAG
+#' MBD: misdirection branch DAG
+#' UEBD: unknown exclusion branch DAG
 #'
 #' @param formula.DAG A string formula describing the DAG, in the style of DAGitty
 #' @param exposure A character string identifying the exposure of interest (must match the formula above)
 #' @param outcome A character string identifying the outcome of interest (must match the formula above)
-#' @param formula.KUERs Not yet implemented
+#' @param formula.KEBDs Not yet implemented
 #' @param instrument The character string identifying which node is the instrumental variable of interest
 #' @keywords DAG, causal inference
 #' @export
-#' @import dagitty
+#' @import dagitty ggdag
 #' @importFrom utils combn
 #' @examples
 #' formula.DAG <-"Chocolate -> Alzheimers
@@ -30,7 +52,7 @@
 #' branch.DAGs <- dagwood(formula.DAG,exposure,outcome)$DAGs.branch
 
 # Main DAGWOOD function
-dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrument=NA){
+dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=NA){
   # Clean up formula/dagitty objects
   {
     # Check if the formula provided is a dagitty object, and fill in appropriately
@@ -56,54 +78,54 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
   # Properties of the root DAG
     nodes.root <- names(DAG.root)
     edges.root <- dagitty::edges(DAG.root)
-  # Properties of the KUERs (if any), set aside for later (not part of the root DAG)
-    if (!is.na(formula.KUERs)){
-      DAG.root.KUERs <- dagitty(paste0("dag {",paste0(formula.DAG,"\n",formula.KUERs,"}")))
-      nodes.root.KUERs <- names(DAG.root.KUERs)
-      nodes.KUERs <- nodes.root.KUERs[!nodes.root.KUERs %in% nodes.root]
+  # Properties of the KEBDs (if any), set aside for later (not part of the root DAG)
+    if (!is.na(formula.KEBDs)){
+      DAG.root.KEBDs <- dagitty(paste0("dag {",paste0(formula.DAG,"\n",formula.KEBDs,"}")))
+      nodes.root.KEBDs <- names(DAG.root.KEBDs)
+      nodes.KEBDs <- nodes.root.KEBDs[!nodes.root.KEBDs %in% nodes.root]
     }
 
-  # Identify exclusion restrictions
+  # Identify exclusion branch DAGs
   {
     # Find every combinatorial of nodes
       combs <- utils::combn(nodes.root,2)
       n.combs <- ncol(combs)
 
     # Function for testing if valid DAGWOOD object, taking a branch DAG (root DAG in memory)
-      test.single.uuer.comb <- function(i){
-        nodes.UUER.temp <- combs[,i]
-        # Three possibilities: ->, <-, or <-UUER->
+      test.single.UEBD.comb <- function(i){
+        nodes.UEBD.temp <- combs[,i]
+        # Three possibilities: ->, <-, or <-UEBD->
           # First, try -> and test
-            addition <- paste0(nodes.UUER.temp[1],"->",nodes.UUER.temp[2])
+            addition <- paste0(nodes.UEBD.temp[1],"->",nodes.UEBD.temp[2])
             DAG.branch.candidate <- dagitty::dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
-            forward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,restriction.type = "ER",changes.made=paste0("Added ",addition))
+            forward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",changes.made=paste0("Added ",addition))
             forward <- forward[forward$verdict=="Passed",]
           # First, try <- and test
-            addition <- paste0(nodes.UUER.temp[1],"<-",nodes.UUER.temp[2])
+            addition <- paste0(nodes.UEBD.temp[1],"<-",nodes.UEBD.temp[2])
             DAG.branch.candidate <- dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
-            backward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,restriction.type = "ER",changes.made=paste0("Added ",addition))
+            backward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",changes.made=paste0("Added ",addition))
             backward <- backward[backward$verdict=="Passed",]
-          # Lastly, try <-UUER-> and test
-            addition <- paste0(nodes.UUER.temp[1],"<-UUER->",nodes.UUER.temp[2])
+          # Lastly, try <-UEBD-> and test
+            addition <- paste0(nodes.UEBD.temp[1],"<-UEBD->",nodes.UEBD.temp[2])
             DAG.branch.candidate <- dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
-            bidirectional <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,restriction.type = "ER",changes.made=paste0("Added ",addition))
+            bidirectional <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",changes.made=paste0("Added ",addition))
             bidirectional <- bidirectional[bidirectional$verdict=="Passed",]
           # Finally, merge into one data frame
             output <- rbind(forward,backward,bidirectional)
           return(output)
       }
 
-      UUERs <- do.call("rbind",lapply(1:n.combs,function(x) test.single.uuer.comb(x)))
-      #UUERs <- UUERs[UUERs$verdict=="Passed",]
+      UEBDs <- do.call("rbind",lapply(1:n.combs,function(x) test.single.UEBD.comb(x)))
+      #UEBDs <- UEBDs[UEBDs$verdict=="Passed",]
   }
 
-  # Identify misdirection restrictions
+  # Identify misdirection branch DAGs
   {
     # Start with master edges list, adding column for whether or not edge has been flipped
       edges.root.tracking <- edges.root[c("v","e","w")]
@@ -117,20 +139,20 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
       edges.root.tracking$flip.candidate <- 0
       edges.root.tracking$distance <- 0
 
-    # Recursive function for searching for MRs
-      MR.search.recursive.outer <- function(edges.candidate.tracking,index.edge,depth=1,search.direction="downstream"){
+    # Recursive function for searching for MBDs
+      MBD.search.recursive.outer <- function(edges.candidate.tracking,index.edge,depth=1,search.direction="downstream"){
         # First, attempt to find matches at current depth
-          tests.at.level <- MR.search.recursive.at.depth(edges.candidate.tracking=edges.candidate.tracking,i=index.edge,depth.target=depth,search.direction=search.direction)
+          tests.at.level <- MBD.search.recursive.at.depth(edges.candidate.tracking=edges.candidate.tracking,i=index.edge,depth.target=depth,search.direction=search.direction)
         # If it passes (or returns a blank), return the output
           if (any(tests.at.level$verdict=="Passed")|nrow(tests.at.level)==0){
             return(tests.at.level)
           } else {
             # If not, iterate and run the next level
-            return(MR.search.recursive.outer(edges.candidate.tracking,index.edge,depth=depth+1))
+            return(MBD.search.recursive.outer(edges.candidate.tracking,index.edge,depth=depth+1))
           }
       }
-    # Recursive function for searching for MRs, searching until it hits a target depth
-      MR.search.recursive.at.depth <- function(edges.candidate.tracking,i,depth.target,search.direction="downstream"){
+    # Recursive function for searching for MBDs, searching until it hits a target depth
+      MBD.search.recursive.at.depth <- function(edges.candidate.tracking,i,depth.target,search.direction="downstream"){
         # First, reset the flip candidates to 0
           edges.candidate.tracking$flip.candidate <- 0
         # Flip an edge
@@ -154,7 +176,7 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
         # Test to see if this change results in a valid DAGWOOD branch DAG
         # Only test at target depth
           if (sum(edges.candidate.tracking$flipped)==depth.target){
-            test.candidate <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,restriction.type = "MR",changes.made=paste0("Flipped ",changes.made))
+            test.candidate <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "MBD",changes.made=paste0("Flipped ",changes.made))
             return(test.candidate)
           } else {
             # If not yet at target depth, iterate to find more flip candidates
@@ -179,17 +201,17 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
                 # Find the row indexes for the new candidates
                   new.candidates <- as.numeric(rownames(edges.candidate.tracking[edges.candidate.tracking$flip.candidate==1,]))
                 # Run the function for all of the new candidates
-                  output <- do.call("rbind",lapply(1:length(new.candidates),function(x) MR.search.recursive.at.depth(edges.candidate.tracking,new.candidates[x],depth.target=depth.target,search.direction=search.direction)))
+                  output <- do.call("rbind",lapply(1:length(new.candidates),function(x) MBD.search.recursive.at.depth(edges.candidate.tracking,new.candidates[x],depth.target=depth.target,search.direction=search.direction)))
                   return(output)
               }
           }
       }
     # Run for each edge
-      MRs <- unique(do.call("rbind",lapply(1:nrow(edges.root.tracking),function(x) MR.search.recursive.outer(edges.root.tracking,x))))
+      MBDs <- unique(do.call("rbind",lapply(1:nrow(edges.root.tracking),function(x) MBD.search.recursive.outer(edges.root.tracking,x))))
   }
 
   # Combine into one big set of branch DAGs
-    DAGs.tested <- rbind(UUERs,MRs)
+    DAGs.tested <- rbind(UEBDs,MBDs)
     DAGs.branch <- DAGs.tested[DAGs.tested$verdict=="Passed",]
 
   # Export
@@ -197,7 +219,7 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KUERs=NA,instrume
 }
 
 # Function for determining if branch candidate passes DAGWOOD rules
-test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,instrument=NA,restriction.type=NA,changes.made=NA) {
+test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,instrument=NA,BD.type=NA,changes.made=NA) {
   # Properties of the root DAG
     adjustment.set.root <- dagitty::adjustmentSets(DAG.root,effect="direct")
     adjustment.set.branch.candidate <- dagitty::adjustmentSets(DAG.branch.candidate,effect="direct")
@@ -271,7 +293,7 @@ test.DAG.branch.candidate <- function(DAG.branch.candidate,DAG.root,instrument=N
     }
 
   DAG.branch.candidate <- DAG.branch.candidate[1]
-  output <- data.frame(verdict,rule.1,rule.2,rule.3a,rule.3b,restriction.type,changes.made,DAG.branch.candidate,
+  output <- data.frame(verdict,rule.1,rule.2,rule.3a,rule.3b,BD.type,changes.made,DAG.branch.candidate,
                        stringsAsFactors = FALSE)
   return(output)
 }
