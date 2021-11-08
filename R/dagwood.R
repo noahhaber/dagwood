@@ -47,6 +47,7 @@
 #' @param outcome A character string identifying the outcome of interest (must match the formula above)
 #' @param formula.KEBDs Not yet implemented
 #' @param instrument The character string identifying which node is the instrumental variable of interest
+#' @param fixed.arrows These arrows are prevented from flipping direction in the misdirection branch DAG algorithm
 #' @keywords DAG, causal inference
 #' @export
 #' @import dagitty
@@ -70,7 +71,7 @@
 #' ggdag(branch.DAGs[1]) + theme_dag()
 
 # Main DAGWOOD function
-dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=NA){
+dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=NA,fixed.arrows=NA){
   # Clean up formula/dagitty objects
   {
     # Check if the formula provided is a dagitty object, and fill in appropriately

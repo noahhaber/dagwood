@@ -2,47 +2,92 @@
 % Please edit documentation in R/dagwood.R
 \name{dagwood}
 \alias{dagwood}
-\title{DAGs with omitted objects displayed}
+\title{DAGs with omitted objects displayed (DAGWOOD)}
 \usage{
 dagwood(
-  formula.DAG,
+  DAG.root,
   exposure = NA,
   outcome = NA,
-  formula.KUERs = NA,
-  instrument = NA
+  formula.KEBDs = NA,
+  instrument = NA,
+  fixed.arrows = NA
 )
 }
 \arguments{
-\item{formula.DAG}{A string formula describing the DAG, in the style of DAGitty}
+\item{DAG.root}{A string formula describing the DAG, in the style of DAGitty}
 
-\item{exposure}{A string identifying the exposure of interest (must match the formula above)}
+\item{exposure}{A character string identifying the exposure of interest (must match the formula above)}
 
-\item{outcome}{A string identifying the outcome of interest (must match the formula above)}
+\item{outcome}{A character string identifying the outcome of interest (must match the formula above)}
 
-\item{formula.KUERs}{Not yet implemented}
+\item{formula.KEBDs}{Not yet implemented}
 
-\item{instrument}{Not yet implemented}
+\item{instrument}{The character string identifying which node is the instrumental variable of interest}
+
+\item{fixed.arrows}{These arrows are prevented from flipping direction in the misdirection branch DAG algorithm}
 }
 \description{
-This function takes a root DAG and generates a DAGWOOD object from it. Details are available
-from a preprint, here: https://arxiv.org/abs/2004.04251
+This package implements a version of the DAGWOOD.
+Details on how DAGWOOD works, can be used, and should be interpreted are available
+from our preprint, here: https://arxiv.org/abs/2004.04251
+This package is implemented based on the DAGITTY package by Johannes Textor
+
+DAGWOODS take\ a root DAG and generates DAGWOOD branch DAGs from it.
+At present, there are two types of branch DAGs:
+\enumerate{
+\item Exclusion branch DAGs represent nodes which, if exist, violate key causal model assumptions.
+The most common example are confounders. There are two types of exclusion branch DAGs at present:
+known exclusion branch DAGs (KEBDs) representing nodes that an analyst knows exist, but did not
+include them in the analytical model (for example, due to lack of data), and unknown exclusion branch
+DAGs (UEBDs) representing unknown or otherwise undeclared nodes which violate key model assumptions.
+\item Misdirection branch DAGs represent DAGs in which a minimal number of DAG arrows might be flipped
+in order to violate key model assumptions. Common examples might be the case when something that is
+adjusted-for as a confounder is a collider, or if missing time nodes exist such that there is "reverse"
+causality between the exposure and outcome.
+}
+
+DAGWOOD objects currently output all branch DAGs as $DAGs.branch from the DAGWOOD object, which includes
+details of why the branch DAG was tested, the type of branch DAG, what was changed from the original root
+DAG, and the branch DAG itself as a dagitty object. The branch DAGs can be viewed, manipulated, etc as
+any other dagitty-based DAG.
+
+Full details of all DAGs tested as potential branch DAGs can be found in $DAGs.tested.
 
 Current limitations to this package:
-Does not currently support instrumental variables (in progress).
+Instrumental variables support is experimental (conditional IVs not yet supported)
 Does not currently support non-minimal adjustment sets from root DAGs
-Does not currently match KUER branch DAG matching with the UUER branch DAGs
+Does not currently match KEBD branch DAG matching with the UEBD branch DAGs
 
 Future features: improved graphical outputs, additional branch DAG types, possibly a GUI
-Improve DAG import features and data checking
+Improve DAG import features and data checking (e.g. make sure IV is valid on entry)
+
+Abbreviations used:
+BD: branch DAG
+DAG: directed acyclic graph
+DAGWOOD: directed acyclic graph with omitted objects displayed
+EBD: exclusion branch DAG
+IV: instrumental variable
+KEBD: known exclusion branch DAG
+MBD: misdirection branch DAG
+UEBD: unknown exclusion branch DAG
 }
 \examples{
-formula.DAG <-"Chocolate -> Alzheimers
+
+# Generate a DAGWOOD from an example root DAG:
+DAG.root <-"Chocolate -> Alzheimers
 Chocolate <- Education -> Alzheimers
 Chocolate -> CV
 CV -> Alzheimers"
+
+# Identify the exposure and outcome of interest
 exposure <- "Chocolate"
 outcome <- "Alzheimers"
-branch.DAGs <- dagwood(formula.DAG,exposure,outcome)$DAGs.branch
+
+# Generate branch DAGs
+branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
+
+# Display the first branch DAG in the list
+ggdag(branch.DAGs[1]) + theme_dag()
 }
 \keyword{DAG,}
 \keyword{causal}
