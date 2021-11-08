@@ -1,6 +1,11 @@
-#' @title DAGs with omitted objects displayed
+#' @title DAGs with omitted objects displayed (DAGWOOD)
 #'
-#' @description This function takes a root DAG and generates DAGWOOD branch DAGs from it.
+#' @description This package implements a version of the DAGWOOD.
+#' Details on how DAGWOOD works, can be used, and should be interpreted are available
+#' from our preprint, here: https://arxiv.org/abs/2004.04251
+#' This package is implemented based on the DAGITTY package by Johannes Textor
+#' 
+#' DAGWOODS take\ a root DAG and generates DAGWOOD branch DAGs from it.
 #' At present, there are two types of branch DAGs:
 #' 1) Exclusion branch DAGs represent nodes which, if exist, violate key causal model assumptions.
 #' The most common example are confounders. There are two types of exclusion branch DAGs at present:
@@ -12,9 +17,13 @@
 #' adjusted-for as a confounder is a collider, or if missing time nodes exist such that there is "reverse"
 #' causality between the exposure and outcome.
 #' 
-#' Details on how DAGWOOD works, can be used, and should be interpreted are available
-#' from our preprint, here: https://arxiv.org/abs/2004.04251
-#'
+#' DAGWOOD objects currently output all branch DAGs as $DAGs.branch from the DAGWOOD object, which includes
+#' details of why the branch DAG was tested, the type of branch DAG, what was changed from the original root
+#' DAG, and the branch DAG itself as a dagitty object. The branch DAGs can be viewed, manipulated, etc as
+#' any other dagitty-based DAG.
+#' 
+#' Full details of all DAGs tested as potential branch DAGs can be found in $DAGs.tested.
+#' 
 #' Current limitations to this package:
 #' Instrumental variables support is experimental (conditional IVs not yet supported)
 #' Does not currently support non-minimal adjustment sets from root DAGs
@@ -33,44 +42,53 @@
 #' MBD: misdirection branch DAG
 #' UEBD: unknown exclusion branch DAG
 #'
-#' @param formula.DAG A string formula describing the DAG, in the style of DAGitty
+#' @param DAG.root A string formula describing the DAG, in the style of DAGitty
 #' @param exposure A character string identifying the exposure of interest (must match the formula above)
 #' @param outcome A character string identifying the outcome of interest (must match the formula above)
 #' @param formula.KEBDs Not yet implemented
 #' @param instrument The character string identifying which node is the instrumental variable of interest
 #' @keywords DAG, causal inference
 #' @export
-#' @import dagitty ggdag
+#' @import dagitty
 #' @importFrom utils combn
 #' @examples
-#' formula.DAG <-"Chocolate -> Alzheimers
+#' 
+#' # Generate a DAGWOOD from an example root DAG:
+#' DAG.root <-"Chocolate -> Alzheimers
 #' Chocolate <- Education -> Alzheimers
 #' Chocolate -> CV
 #' CV -> Alzheimers"
+#' 
+#' # Identify the exposure and outcome of interest
 #' exposure <- "Chocolate"
 #' outcome <- "Alzheimers"
-#' branch.DAGs <- dagwood(formula.DAG,exposure,outcome)$DAGs.branch
+#' 
+#' # Generate branch DAGs
+#' branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
+#' 
+#' # Display the first branch DAG in the list
+#' ggdag(branch.DAGs[1]) + theme_dag()
 
 # Main DAGWOOD function
-dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=NA){
+dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=NA){
   # Clean up formula/dagitty objects
   {
     # Check if the formula provided is a dagitty object, and fill in appropriately
-      if(dagitty::is.dagitty(formula.DAG)){
-        DAG.root <- formula.DAG
-        if (length(dagitty::exposures(formula.DAG))==0){
+      if(dagitty::is.dagitty(DAG.root)){
+        DAG.root <- DAG.root
+        if (length(dagitty::exposures(DAG.root))==0){
           dagitty::exposures(DAG.root) <- exposure
         } else {
           exposure <- dagitty::exposures(DAG.root)
         }
-        if (length(dagitty::outcomes(formula.DAG))==0){
+        if (length(dagitty::outcomes(DAG.root))==0){
           dagitty::outcomes(DAG.root) <- outcomes
         } else {
           outcome <- dagitty::outcomes(DAG.root)
         }
-        formula.DAG <- paste0(edges(DAG.root)$v,edges(DAG.root)$e,edges(DAG.root)$w,collapse=" \n ")
+        DAG.root <- paste0(edges(DAG.root)$v,edges(DAG.root)$e,edges(DAG.root)$w,collapse=" \n ")
       } else {
-        DAG.root <- dagitty(paste0("dag {",formula.DAG,"}"))
+        DAG.root <- dagitty(paste0("dag {",DAG.root,"}"))
         dagitty::exposures(DAG.root) <- exposure
         dagitty::outcomes(DAG.root) <- outcome
       }
@@ -80,7 +98,7 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KEBDs=NA,instrume
     edges.root <- dagitty::edges(DAG.root)
   # Properties of the KEBDs (if any), set aside for later (not part of the root DAG)
     if (!is.na(formula.KEBDs)){
-      DAG.root.KEBDs <- dagitty(paste0("dag {",paste0(formula.DAG,"\n",formula.KEBDs,"}")))
+      DAG.root.KEBDs <- dagitty(paste0("dag {",paste0(DAG.root,"\n",formula.KEBDs,"}")))
       nodes.root.KEBDs <- names(DAG.root.KEBDs)
       nodes.KEBDs <- nodes.root.KEBDs[!nodes.root.KEBDs %in% nodes.root]
     }
@@ -97,21 +115,21 @@ dagwood <- function(formula.DAG,exposure=NA,outcome=NA,formula.KEBDs=NA,instrume
         # Three possibilities: ->, <-, or <-UEBD->
           # First, try -> and test
             addition <- paste0(nodes.UEBD.temp[1],"->",nodes.UEBD.temp[2])
-            DAG.branch.candidate <- dagitty::dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
+            DAG.branch.candidate <- dagitty::dagitty(paste0("dag {",DAG.root,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
             forward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",changes.made=paste0("Added ",addition))
             forward <- forward[forward$verdict=="Passed",]
           # First, try <- and test
             addition <- paste0(nodes.UEBD.temp[1],"<-",nodes.UEBD.temp[2])
-            DAG.branch.candidate <- dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
+            DAG.branch.candidate <- dagitty(paste0("dag {",DAG.root,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
             backward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",changes.made=paste0("Added ",addition))
             backward <- backward[backward$verdict=="Passed",]
           # Lastly, try <-UEBD-> and test
             addition <- paste0(nodes.UEBD.temp[1],"<-UEBD->",nodes.UEBD.temp[2])
-            DAG.branch.candidate <- dagitty(paste0("dag {",formula.DAG,"\n",addition,"}"))
+            DAG.branch.candidate <- dagitty(paste0("dag {",DAG.root,"\n",addition,"}"))
             dagitty::exposures(DAG.branch.candidate) <- exposure
             dagitty::outcomes(DAG.branch.candidate) <- outcome
             bidirectional <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",changes.made=paste0("Added ",addition))
