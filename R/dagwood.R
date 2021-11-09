@@ -28,6 +28,7 @@
 #' Instrumental variables support is experimental (conditional IVs not yet supported)
 #' Does not currently support non-minimal adjustment sets from root DAGs
 #' Does not currently match KEBD branch DAG matching with the UEBD branch DAGs
+#' Does not check for errors for the fixed arrows (i.e. assumes that they match the main formula correctly)
 #'
 #' Future features: improved graphical outputs, additional branch DAG types, possibly a GUI
 #' Improve DAG import features and data checking (e.g. make sure IV is valid on entry)
@@ -42,12 +43,12 @@
 #' MBD: misdirection branch DAG
 #' UEBD: unknown exclusion branch DAG
 #'
-#' @param DAG.root A string formula describing the DAG, in the style of DAGitty
+#' @param DAG.root A string formula describing the DAG, in the format style of DAGitty
 #' @param exposure A character string identifying the exposure of interest (must match the formula above)
 #' @param outcome A character string identifying the outcome of interest (must match the formula above)
-#' @param formula.KEBDs Not yet implemented
+#' @param KEBDs (not yet implemented)
 #' @param instrument The character string identifying which node is the instrumental variable of interest
-#' @param fixed.arrows These arrows are prevented from flipping direction in the misdirection branch DAG algorithm
+#' @param fixed.arrows (experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.
 #' @keywords DAG, causal inference
 #' @export
 #' @import dagitty
@@ -71,7 +72,7 @@
 #' ggdag(branch.DAGs[1]) + theme_dag()
 
 # Main DAGWOOD function
-dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=NA,fixed.arrows=NA){
+dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed.arrows=NA){
   # Clean up formula/dagitty objects
   {
     # Check if the formula provided is a dagitty object, and fill in appropriately
@@ -98,8 +99,8 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=
     nodes.root <- names(DAG.root)
     edges.root <- dagitty::edges(DAG.root)
   # Properties of the KEBDs (if any), set aside for later (not part of the root DAG)
-    if (!is.na(formula.KEBDs)){
-      DAG.root.KEBDs <- dagitty(paste0("dag {",paste0(DAG.root,"\n",formula.KEBDs,"}")))
+    if (!is.na(KEBDs)){
+      DAG.root.KEBDs <- dagitty(paste0("dag {",paste0(DAG.root,"\n",KEBDs,"}")))
       nodes.root.KEBDs <- names(DAG.root.KEBDs)
       nodes.KEBDs <- nodes.root.KEBDs[!nodes.root.KEBDs %in% nodes.root]
     }
@@ -157,6 +158,16 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=
       edges.root.tracking$flipped <- 0
       edges.root.tracking$flip.candidate <- 0
       edges.root.tracking$distance <- 0
+      
+    # Add information in for any fixed arrows
+      if (!is.na(fixed.arrows)){
+        edges.root.fixed <- edges(dagitty(dagitty(paste0("dag {",fixed.arrows,"}"))))[c("v","w","e")]
+        edges.root.fixed$fixed.arrow <- 1
+        edges.root.tracking <- merge(edges.root.tracking,edges.root.fixed,by=c("v","e","w"),all.x=TRUE,all.y=FALSE)
+        edges.root.tracking$fixed.arrow <- ifelse(is.na(edges.root.tracking$fixed.arrow),0,edges.root.tracking$fixed.arrow)
+      } else {
+        edges.root.tracking$fixed.arrow <- 0
+      }
 
     # Recursive function for searching for MBDs
       MBD.search.recursive.outer <- function(edges.candidate.tracking,index.edge,depth=1,search.direction="downstream"){
@@ -200,14 +211,14 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=
           } else {
             # If not yet at target depth, iterate to find more flip candidates
               if (search.direction == "downstream"){
-                # Find all of edges connected to the new target edge which are unflipped
+                # Find all of edges connected to the new target edge which are unflipped and not fixed
                   edges.candidate.tracking$flip.candidate <- ifelse((edges.candidate.tracking$w==node.target.new | edges.candidate.tracking$v==node.target.new) &
-                                                                    edges.candidate.tracking$flipped==0,
+                                                                    edges.candidate.tracking$flipped==0 & edges.candidate.tracking$fixed.arrow == 0,
                                                                   1,0)
               } else if (search.direction == "bidirectional") {
-                # Find all of edges connected to either side of the newly flipped edge
+                # Find all of edges connected to either side of the newly flipped edge which are unflipped and not fixed
                   edges.candidate.tracking$flip.candidate <- ifelse((edges.candidate.tracking$w==node.target.new | edges.candidate.tracking$v==node.target.new | edges.candidate.tracking$w==node.trailing.new | edges.candidate.tracking$v==node.trailing.new) &
-                                                                      edges.candidate.tracking$flipped==0,
+                                                                      edges.candidate.tracking$flipped==0 & edges.candidate.tracking$fixed.arrow == 0,
                                                                     1,0)
               }
             # If nothing is available, return an empty set
@@ -225,8 +236,9 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,formula.KEBDs=NA,instrument=
               }
           }
       }
-    # Run for each edge
-      MBDs <- unique(do.call("rbind",lapply(1:nrow(edges.root.tracking),function(x) MBD.search.recursive.outer(edges.root.tracking,x))))
+    # Run for each edge that isn't fixed
+      unfixed.edges <- c(1:nrow(edges.root.tracking))[edges.root.tracking$fixed.arrow==0]
+      MBDs <- unique(do.call("rbind",lapply(unfixed.edges,function(x) MBD.search.recursive.outer(edges.root.tracking,x))))
   }
 
   # Combine into one big set of branch DAGs
