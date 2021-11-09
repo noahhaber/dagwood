@@ -8,23 +8,23 @@ dagwood(
   DAG.root,
   exposure = NA,
   outcome = NA,
-  formula.KEBDs = NA,
+  KEBDs = NA,
   instrument = NA,
   fixed.arrows = NA
 )
 }
 \arguments{
-\item{DAG.root}{A string formula describing the DAG, in the style of DAGitty}
+\item{DAG.root}{A string formula describing the DAG, in the format style of DAGitty}
 
 \item{exposure}{A character string identifying the exposure of interest (must match the formula above)}
 
 \item{outcome}{A character string identifying the outcome of interest (must match the formula above)}
 
-\item{formula.KEBDs}{Not yet implemented}
+\item{KEBDs}{(not yet implemented)}
 
 \item{instrument}{The character string identifying which node is the instrumental variable of interest}
 
-\item{fixed.arrows}{These arrows are prevented from flipping direction in the misdirection branch DAG algorithm}
+\item{fixed.arrows}{(experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.}
 }
 \description{
 This package implements a version of the DAGWOOD.
@@ -57,6 +57,7 @@ Current limitations to this package:
 Instrumental variables support is experimental (conditional IVs not yet supported)
 Does not currently support non-minimal adjustment sets from root DAGs
 Does not currently match KEBD branch DAG matching with the UEBD branch DAGs
+Does not check for errors for the fixed arrows (i.e. assumes that they match the main formula correctly)
 
 Future features: improved graphical outputs, additional branch DAG types, possibly a GUI
 Improve DAG import features and data checking (e.g. make sure IV is valid on entry)
