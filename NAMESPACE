@@ -2,4 +2,5 @@
 
 export(dagwood)
 import(dagitty)
+import(ggdag)
 importFrom(utils,combn)

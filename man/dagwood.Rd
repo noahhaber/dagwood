@@ -32,7 +32,7 @@ Details on how DAGWOOD works, can be used, and should be interpreted are availab
 from our preprint, here: https://arxiv.org/abs/2004.04251
 This package is implemented based on the DAGITTY package by Johannes Textor
 
-DAGWOODS take\ a root DAG and generates DAGWOOD branch DAGs from it.
+DAGWOODS take a root DAG and generates DAGWOOD branch DAGs from it.
 At present, there are two types of branch DAGs:
 \enumerate{
 \item Exclusion branch DAGs represent nodes which, if exist, violate key causal model assumptions.

@@ -5,7 +5,7 @@
 #' from our preprint, here: https://arxiv.org/abs/2004.04251
 #' This package is implemented based on the DAGITTY package by Johannes Textor
 #' 
-#' DAGWOODS take\ a root DAG and generates DAGWOOD branch DAGs from it.
+#' DAGWOODS take a root DAG and generates DAGWOOD branch DAGs from it.
 #' At present, there are two types of branch DAGs:
 #' 1) Exclusion branch DAGs represent nodes which, if exist, violate key causal model assumptions.
 #' The most common example are confounders. There are two types of exclusion branch DAGs at present:
@@ -51,7 +51,7 @@
 #' @param fixed.arrows (experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.
 #' @keywords DAG, causal inference
 #' @export
-#' @import dagitty
+#' @import dagitty ggdag
 #' @importFrom utils combn
 #' @examples
 #' 
