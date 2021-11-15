@@ -69,7 +69,7 @@
 #' branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
 #' 
 #' # Display the first branch DAG in the list
-#' ggdag(branch.DAGs[1]) + theme_dag()
+#' ggdag(branch.DAGs$DAG.branch.candidate[1]) + theme_dag()
 
 # Main DAGWOOD function
 dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed.arrows=NA){
