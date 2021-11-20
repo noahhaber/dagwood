@@ -51,7 +51,7 @@
 #' @param fixed.arrows (experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.
 #' @keywords DAG, causal inference
 #' @export
-#' @import dagitty ggdag
+#' @import dagitty
 #' @importFrom utils combn
 #' @examples
 #' 
@@ -69,6 +69,7 @@
 #' branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
 #' 
 #' # Display the first branch DAG in the list
+#' library(ggdag)
 #' ggdag(branch.DAGs$DAG.branch.candidate[1]) + theme_dag()
 
 # Main DAGWOOD function

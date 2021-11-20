@@ -88,7 +88,8 @@ outcome <- "Alzheimers"
 branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
 
 # Display the first branch DAG in the list
-ggdag(branch.DAGs[1]) + theme_dag()
+library(ggdag)
+ggdag(branch.DAGs$DAG.branch.candidate[1]) + theme_dag()
 }
 \keyword{DAG,}
 \keyword{causal}

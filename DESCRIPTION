@@ -1,8 +1,8 @@
 Package: dagwood
 Title: DAGWOOD
-Version: 0.0.0.9000
+Version: 0.1.0.9000
 Authors@R: 
-    person(given = "Noh",
+    person(given = "Noah",
            family = "Haber",
            role = c("aut", "cre"),
            email = "noahhaber@stanford.edu",
@@ -13,5 +13,7 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     dagitty
+Suggests:
+    ggdag
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
