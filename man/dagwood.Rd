@@ -93,8 +93,6 @@ branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
 library(ggdag)
 ggdag(branch.DAGs$DAG.branch.candidate[1]) + theme_dag()
 }
-\keyword{acyclic}
+\keyword{DAG}
 \keyword{causal}
-\keyword{directed}
-\keyword{graph,}
 \keyword{inference}

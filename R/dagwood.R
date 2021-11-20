@@ -51,7 +51,7 @@
 #' @param KEBDs (not yet implemented)
 #' @param instrument The character string identifying which node is the instrumental variable of interest
 #' @param fixed.arrows (experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.
-#' @keywords directed acyclic graph, causal inference
+#' @keywords DAG causal inference DAGWOOD
 #' @export
 #' @import dagitty
 #' @importFrom utils combn
