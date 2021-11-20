@@ -1,13 +1,13 @@
 Package: dagwood
-Title: DAGWOOD
-Version: 0.1.0.9000
+Title: DAGs with Omitted Objects Displayed (DAGWOOD)
+Version: 0.1.0.9001
 Authors@R: 
     person(given = "Noah",
            family = "Haber",
            role = c("aut", "cre"),
            email = "noahhaber@stanford.edu",
            comment = c(ORCID = "0000-0002-5672-1769"))
-Description: DAGWOODs are a framework to help reveal key hidden assumptions in a causal DAG. This package creates a DAGWOOD object from a given DAG.
+Description: DAGs With Omitted Objects Displayed (DAGWOOD) is a framework to help reveal key hidden assumptions in a causal DAG. This package provides an implementation of the DAGWOOD algorithm.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

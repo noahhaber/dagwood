@@ -1,2 +1,5 @@
 ^dagwood\.Rproj$
 ^\.Rproj\.user$
+desktop.ini
+^R\desktop.ini
+^man\desktop.ini
