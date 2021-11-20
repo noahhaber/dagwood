@@ -2,7 +2,7 @@
 % Please edit documentation in R/dagwood.R
 \name{dagwood}
 \alias{dagwood}
-\title{DAGs with omitted objects displayed (DAGWOOD)}
+\title{DAGs with Omitted Objects Displayed (DAGWOOD)}
 \usage{
 dagwood(
   DAG.root,
@@ -27,10 +27,12 @@ dagwood(
 \item{fixed.arrows}{(experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.}
 }
 \description{
-This package implements a version of the DAGWOOD.
+DAGs with omitted objects displayed (DAGWOOD) are a framework to help reveal key hidden
+assumptions in a causal DAG. This package provides an implementation of the DAGWOOD algorithm.
 Details on how DAGWOOD works, can be used, and should be interpreted are available
 from our preprint, here: https://arxiv.org/abs/2004.04251
-This package is implemented based on the DAGITTY package by Johannes Textor
+This package is implemented based on the DAGITTY package by Johannes Textor.
+More information is available here: http://dagitty.net/learn/index.html
 
 DAGWOODS take a root DAG and generates DAGWOOD branch DAGs from it.
 At present, there are two types of branch DAGs:
@@ -91,6 +93,8 @@ branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
 library(ggdag)
 ggdag(branch.DAGs$DAG.branch.candidate[1]) + theme_dag()
 }
-\keyword{DAG,}
+\keyword{acyclic}
 \keyword{causal}
+\keyword{directed}
+\keyword{graph,}
 \keyword{inference}
