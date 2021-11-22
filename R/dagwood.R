@@ -1,11 +1,15 @@
 #' @title DAGs with Omitted Objects Displayed (DAGWOOD)
+#' 
+#' @keywords DAG causal inference DAGWOOD
+#' @export dagwood
+#' @import dagitty
+#' @importFrom utils combn
+#' @references Haber NA, Wood ME, Wieten S, Breskin A (2021) <arXiv:2004.04251 [stat.ME]>
 #'
-#' @description DAGs with omitted objects displayed (DAGWOOD) are a framework to help reveal key hidden
-#' assumptions in a causal DAG. This package provides an implementation of the DAGWOOD algorithm.
-#' Details on how DAGWOOD works, can be used, and should be interpreted are available
-#' from our preprint, here: https://arxiv.org/abs/2004.04251
-#' This package is implemented based on the DAGITTY package by Johannes Textor.
-#' More information is available here: http://dagitty.net/learn/index.html
+#' @description A framework to help reveal key hidden assumptions in a causal directed acyclic graph
+#' (DAG). Details on how DAGs with Omitted Objects Displayed (DAGWOOD) works, can be used, and should
+#' be interpreted are available from our preprint:
+#' Haber NA, Wood ME, Wieten S, Breskin A (2021) <arXiv:2004.04251 [stat.ME]>
 #' 
 #' DAGWOODS take a root DAG and generates DAGWOOD branch DAGs from it.
 #' At present, there are two types of branch DAGs:
@@ -19,18 +23,27 @@
 #' adjusted-for as a confounder is a collider, or if missing time nodes exist such that there is "reverse"
 #' causality between the exposure and outcome.
 #' 
-#' DAGWOOD objects currently output all branch DAGs as $DAGs.branch from the DAGWOOD object, which includes
-#' details of why the branch DAG was tested, the type of branch DAG, what was changed from the original root
-#' DAG, and the branch DAG itself as a dagitty object. The branch DAGs can be viewed, manipulated, etc as
-#' any other dagitty-based DAG.
+#' This package is implemented based on the DAGITTY package by Johannes Textor.
+#' More information is available here: http://dagitty.net/learn/index.html
 #' 
-#' Full details of all DAGs tested as potential branch DAGs can be found in $DAGs.tested.
+#' The dagwood function generates an object of class "dagwood" which organizes relevant outputs for use,
+#' using the $ operator. At this time, this includes $DAGs.branch (the main output) and $DAGs.tested (used mainly
+#' for diagnostics).
+#' 
+#' DAGWOOD objects currently output all branch DAGs in $DAGs.branch from the DAGWOOD object, which is a data
+#' frame which includes #' details of why the branch DAG was tested, the type of branch DAG, what was changed
+#' from the original root #' DAG, and the branch DAG itself as a dagitty object. The branch DAGs can be viewed,
+#' manipulated, etc as any other dagitty-based DAG, using the dagitty syntax.
+#' 
+#' In addition, the DAGWOOD object contains $DAGs.tested, which stores each potential branch DAG that the algorithm
+#' tests for validity, and the results of those tests. This is mainly used for diagnostic purposes (i.e. determining
+#' what DAGs were tested and why they were accepted or rejected).
 #' 
 #' Current limitations to this package:
 #' Instrumental variables support is experimental (conditional IVs not yet supported)
 #' Does not currently support non-minimal adjustment sets from root DAGs
 #' Does not currently match KEBD branch DAG matching with the UEBD branch DAGs
-#' Does not check for errors for the fixed arrows (i.e. assumes that they match the main formula correctly)
+#' Does not check for issues with the root DAG (i.e. assumes root DAG is correctly specified)
 #'
 #' Future features: improved graphical outputs, additional branch DAG types, possibly a GUI
 #' Improve DAG import features and data checking (e.g. make sure IV is valid on entry)
@@ -45,16 +58,14 @@
 #' MBD: misdirection branch DAG
 #' UEBD: unknown exclusion branch DAG
 #'
+#' @name dagwood
 #' @param DAG.root A string formula describing the DAG, in the format style of DAGitty
 #' @param exposure A character string identifying the exposure of interest (must match the formula above)
 #' @param outcome A character string identifying the outcome of interest (must match the formula above)
 #' @param KEBDs (not yet implemented)
 #' @param instrument The character string identifying which node is the instrumental variable of interest
 #' @param fixed.arrows (experimental) These arrows are prevented from flipping direction in the misdirection branch DAG algorithm. Nodes and arrows should be entered in the form of DAGitty.
-#' @keywords DAG causal inference DAGWOOD
-#' @export
-#' @import dagitty
-#' @importFrom utils combn
+#' @return Does not return a data or object; all outputs are stored in the $ operators (e.g. $DAGs.branch)
 #' @examples
 #' 
 #' # Generate a DAGWOOD from an example root DAG:
@@ -67,8 +78,11 @@
 #' exposure <- "Chocolate"
 #' outcome <- "Alzheimers"
 #' 
-#' # Generate branch DAGs
-#' branch.DAGs <- dagwood(DAG.root,exposure,outcome)$DAGs.branch
+#' # Run the DAGWOOD algorithm and store results
+#' choc.alz.dagwood <- dagwood(DAG.root,exposure,outcome)
+#' 
+#' # Get the branch DAGs from the DAGWOOD object
+#' branch.DAGs <- choc.alz.dagwood$DAGs.branch
 #' 
 #' # Display the first branch DAG in the list
 #' library(ggdag)
