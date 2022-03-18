@@ -4,11 +4,11 @@
 #' @export dagwood
 #' @import dagitty
 #' @importFrom utils combn
-#' @references https://arxiv.org/abs/2004.04251
+#' @references https://doi.org/10.1016/j.annepidem.2022.01.001
 #'
 #' @description A framework to help reveal key hidden assumptions in a causal directed acyclic graph
 #' (DAG). Details on how DAGs with Omitted Objects Displayed (DAGWOOD) works, can be used, and should
-#' be interpreted are available from our preprint: https://arxiv.org/abs/2004.04251
+#' be interpreted are available from our paper: https://doi.org/10.1016/j.annepidem.2022.01.001
 #' 
 #' DAGWOODS take a root DAG and generates DAGWOOD branch DAGs from it.
 #' At present, there are two types of branch DAGs:
