@@ -32,7 +32,7 @@ Does not return a data or object; all outputs are stored in the $ operators (e.g
 \description{
 A framework to help reveal key hidden assumptions in a causal directed acyclic graph
 (DAG). Details on how DAGs with Omitted Objects Displayed (DAGWOOD) works, can be used, and should
-be interpreted are available from our preprint: https://arxiv.org/abs/2004.04251
+be interpreted are available from our paper: https://doi.org/10.1016/j.annepidem.2022.01.001
 
 DAGWOODS take a root DAG and generates DAGWOOD branch DAGs from it.
 At present, there are two types of branch DAGs:
@@ -106,7 +106,7 @@ library(ggdag)
 ggdag(branch.DAGs$DAG.branch.candidate[1]) + theme_dag()
 }
 \references{
-https://arxiv.org/abs/2004.04251
+https://doi.org/10.1016/j.annepidem.2022.01.001
 }
 \keyword{DAG}
 \keyword{DAGWOOD}

@@ -138,7 +138,7 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
             dagitty::outcomes(DAG.branch.candidate) <- outcome
             forward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",
                                                  changes.made.description="Added edge",changes.made=addition,
-                                                 assumption.description=paste0("Except through already identified pathways, there does not exist edge: ",addition))
+                                                 assumption.description=paste0("There are no pathways through which ",nodes.UEBD.temp[1]," causes ",nodes.UEBD.temp[2]," except through nodes already accounted-for."))
             forward <- forward[forward$verdict=="Passed",]
           # First, try <- and test
             addition <- paste0(nodes.UEBD.temp[1],"<-",nodes.UEBD.temp[2])
@@ -147,7 +147,7 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
             dagitty::outcomes(DAG.branch.candidate) <- outcome
             backward <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",
                                                   changes.made.description="Added edge",changes.made=addition,
-                                                  assumption.description=paste0("Except through already identified pathways, there does not exist edge: ",addition))
+                                                  assumption.description=paste0("There are no pathways through which ",nodes.UEBD.temp[2]," causes ",nodes.UEBD.temp[1]," except through nodes already accounted-for."))
             backward <- backward[backward$verdict=="Passed",]
           # Lastly, try <-UEBD-> and test
             addition <- paste0(nodes.UEBD.temp[1],"<-UnidentifiedNode->",nodes.UEBD.temp[2])
@@ -156,7 +156,7 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
             dagitty::outcomes(DAG.branch.candidate) <- outcome
             bidirectional <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "ER",
                                                        changes.made.description="Added unidentified node and edge(s)",changes.made=addition,
-                                                       assumption.description=paste0("Except through already identified pathways, there does not exist unidentified node and edges: ",addition))
+                                                       assumption.description=paste0("There are no common causes of both ",nodes.UEBD.temp[1]," and ",nodes.UEBD.temp[2]," that are not already adjusted- or controlled-for."))
             bidirectional <- bidirectional[bidirectional$verdict=="Passed",]
           # Finally, merge into one data frame
             output <- rbind(forward,backward,bidirectional)
@@ -225,12 +225,22 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
         # Collect all changes for reporting
           recording.temp <- edges.candidate.tracking[edges.candidate.tracking$flipped==1,]
           changes.made <- paste(paste0(recording.temp$v,recording.temp$e,recording.temp$w),collapse=", ")
+          recording.temp$change.text <- ifelse(recording.temp$e=="->",paste0(recording.temp$v," can cause ",recording.temp$w),paste0(recording.temp$w," can cause ",recording.temp$v))
+          if (nrow(recording.temp)==1) {
+            assumption.description <- paste0("There are no pathways through which ",recording.temp$change.text[1],".")
+          } else {
+            assumption.description <- paste0("There are no pathways through which both ",recording.temp$change.text[1],", and ",recording.temp$change.text[2],".")
+          }
+          
+          #else {
+          #   assumption.description <- paste0("Both ",recording.temp$change.text[1]," and ",recording.temp$change.text[2] }
+          #assumption.description <- "temp"
         # Test to see if this change results in a valid DAGWOOD branch DAG
         # Only test at target depth
           if (sum(edges.candidate.tracking$flipped)==depth.target){
             test.candidate <- test.DAG.branch.candidate(DAG.branch.candidate = DAG.branch.candidate,DAG.root=DAG.root,instrument=instrument,BD.type = "MBD",
                                                         changes.made.description="Flipped edge(s)",changes.made=changes.made,
-                                                        assumption.description = paste0("This/these flipped edge(s) cannot influence the analysis: ",changes.made))
+                                                        assumption.description = assumption.description)
             return(test.candidate)
           } else {
             # If not yet at target depth, iterate to find more flip candidates
@@ -270,7 +280,7 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
     DAGs.branch <- DAGs.tested[DAGs.tested$verdict=="Passed",]
     
   # Generate summary of assumptions
-    summary <- paste("DAGWOOD has identified the following key assumptions:\n",paste(DAGs.branch$assumption.description,collapse="\n"),sep="\n")
+    summary <- paste("DAGWOOD has identified the following key assumptions. With respect to the root DAG:\n",paste(paste0(". ",DAGs.branch$assumption.description),collapse="\n"),sep="\n")
     cat(summary)
 
   # Export
