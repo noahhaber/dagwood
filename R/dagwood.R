@@ -280,11 +280,12 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
     DAGs.branch <- DAGs.tested[DAGs.tested$verdict=="Passed",]
     
   # Generate summary of assumptions
-    summary <- paste("DAGWOOD has identified the following key assumptions. With respect to the root DAG:\n",paste(paste0(". ",DAGs.branch$assumption.description),collapse="\n"),sep="\n")
+    summary <- paste("DAGWOOD has identified the following key assumptions, With respect to the root DAG:\n",
+                     paste(paste0(". ",DAGs.branch$assumption.description),collapse="\n"),sep="\n")
     cat(summary)
 
   # Export
-    invisible(list("DAGs.branch" = DAGs.branch,"DAGs.tested"=DAGs.tested,"Summary"=summary))
+    invisible(list("DAG.root" = DAG.root,"DAGs.branch" = DAGs.branch,"DAGs.tested"=DAGs.tested,"Summary"=summary))
 }
 
 # Function for determining if branch candidate passes DAGWOOD rules. (Note: the changes made variables are pass through strings)
