@@ -284,7 +284,7 @@ dagwood <- function(DAG.root,exposure=NA,outcome=NA,KEBDs=NA,instrument=NA,fixed
     cat(summary)
 
   # Export
-    return(list("DAGs.branch" = DAGs.branch,"DAGs.tested"=DAGs.tested,"Summary"=summary))
+    invisible(list("DAGs.branch" = DAGs.branch,"DAGs.tested"=DAGs.tested,"Summary"=summary))
 }
 
 # Function for determining if branch candidate passes DAGWOOD rules. (Note: the changes made variables are pass through strings)
