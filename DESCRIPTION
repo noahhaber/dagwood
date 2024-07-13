@@ -1,6 +1,6 @@
 Package: dagwood
 Title: DAGs with Omitted Objects Displayed (DAGWOOD)
-Version: 0.1.4
+Version: 0.1.5
 Authors@R: 
     person(given = "Noah",
            family = "Haber",
@@ -12,8 +12,8 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
-    dagitty
+    dagitty, parallel, pbapply
 Suggests:
     ggdag
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.2

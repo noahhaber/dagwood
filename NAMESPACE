@@ -2,4 +2,6 @@
 
 export(dagwood)
 import(dagitty)
+import(parallel)
+import(pbapply)
 importFrom(utils,combn)

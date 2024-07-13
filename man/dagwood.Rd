@@ -10,7 +10,9 @@ dagwood(
   outcome = NA,
   KEBDs = NA,
   instrument = NA,
-  fixed.arrows = NA
+  fixed.arrows = NA,
+  parallel = FALSE,
+  n.cores = detectCores()
 )
 }
 \arguments{
